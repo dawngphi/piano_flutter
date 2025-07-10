@@ -13,8 +13,9 @@ class Note {
 
   @override
   String toString() {
-    return '${chromaticName[keys[key]!]}$octave';
+    return '${chromaticName[keys[key]!]}${octave.value}';
   }
+
 
   int valueOf() {
     return octave.value * octaveKeyCount + keys[key]!;
@@ -33,4 +34,5 @@ class Note {
 
   @override
   int get hashCode => key.hashCode ^ octave.hashCode;
+
 }

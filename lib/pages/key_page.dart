@@ -115,7 +115,7 @@ class _KeyWidgetState extends State<KeyWidget> {
   Widget build(BuildContext context) {
     final isWhiteKey = widget.note.bw == BlackWhite.white;
     final isBlackKey = widget.note.bw == BlackWhite.black;
-// print("ádasdadasdasdasdadasdasdasdadasdadadadasdasdasdasd${widget.note.toString()}");
+print("ádasdadasdasdasdadasdasdasdadasdadadadasdasdasdasd:${widget.note.toString()}");
     return GestureDetector(
       onTapDown: _handleTapDown,
       onTapUp: _handleTapUp,
