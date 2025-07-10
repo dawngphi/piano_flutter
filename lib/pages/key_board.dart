@@ -1,63 +1,102 @@
 import 'package:flutter/material.dart';
 import '../logic/db.dart';
-import '../logic/note.dart';
 import 'key_page.dart';
-
-class Keyboard extends StatefulWidget {
+class KeyboardProps {
   final int offset;
   final List<bool>? highlightTable;
   final int? highlightColor;
 
-  const Keyboard({
-    Key? key,
+  KeyboardProps({
     required this.offset,
     this.highlightTable,
     this.highlightColor,
-  }) : super(key: key);
+  });
+}
+
+class Keyboard extends StatefulWidget {
+  final KeyboardProps props;
+
+  const Keyboard({Key? key, required this.props}) : super(key: key);
 
   @override
-  State<Keyboard> createState() => _KeyboardState();
+  _KeyboardState createState() => _KeyboardState();
 }
 
 class _KeyboardState extends State<Keyboard> {
   final ScrollController _scrollController = ScrollController();
-  final Map<int, GlobalKey> _keyWidgetKeys = {}; // Sửa thành map để tránh lỗi null
+  final List<GlobalKey> _keyKeys = [];
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize keys for each note (36 keys)
+    for (int i = 0; i < 36; i++) {
+      _keyKeys.add(GlobalKey());
+    }
+  }
 
   @override
   void didUpdateWidget(Keyboard oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    if (widget.highlightTable != null &&
-        widget.highlightTable != oldWidget.highlightTable) {
+    // Equivalent to componentDidUpdate - scroll highlighted keys into view
+    if (widget.props.highlightTable != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scrollToHighlightedKeys();
+        _scrollHighlightedKeysIntoView();
       });
     }
   }
 
-  void _scrollToHighlightedKeys() {
-    final table = widget.highlightTable;
-    if (table == null) return;
+  void _scrollHighlightedKeysIntoView() {
+    if (widget.props.highlightTable == null) return;
 
-    final firstIndex = table.indexWhere((item) => item == true);
-    final lastIndex = table.lastIndexOf(true);
+    final firstIndex = widget.props.highlightTable!.indexWhere((item) => item == true);
+    final lastIndex = widget.props.highlightTable!.lastIndexWhere((item) => item == true);
 
-    if (firstIndex == -1 || lastIndex == -1) return;
+    if (firstIndex != -1 && lastIndex != -1) {
+      // Scroll to the last highlighted key first
+      if (_keyKeys[lastIndex].currentContext != null) {
+        Scrollable.ensureVisible(
+          _keyKeys[lastIndex].currentContext!,
+          duration: const Duration(milliseconds: 300),
+        );
+      }
 
-    final firstKeyContext = _keyWidgetKeys[firstIndex]?.currentContext;
-    final lastKeyContext = _keyWidgetKeys[lastIndex]?.currentContext;
+      // Then scroll to the first highlighted key
+      if (_keyKeys[firstIndex].currentContext != null) {
+        Scrollable.ensureVisible(
+          _keyKeys[firstIndex].currentContext!,
+          duration: const Duration(milliseconds: 300),
+        );
+      }
+    }
+  }
 
-    if (firstKeyContext == null || lastKeyContext == null) return;
+  @override
+  Widget build(BuildContext context) {
+    int offset = 12 * (1 + widget.props.offset);
+    List<dynamic> notes = allNotes.sublist(offset, offset + 36);
+    List<bool> highlightTable = widget.props.highlightTable ?? List.filled(36, false);
+    int highlightColor = widget.props.highlightColor ?? 1;
 
-    final firstBox = firstKeyContext.findRenderObject() as RenderBox;
-    final firstOffset = firstBox.localToGlobal(Offset.zero);
+    return Container(
+      child: SingleChildScrollView(
+        controller: _scrollController,
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: notes.asMap().entries.map((entry) {
+            int index = entry.key;
+            dynamic note = entry.value;
 
-    final scrollOffset = firstOffset.dx - 40;
-
-    _scrollController.animateTo(
-      scrollOffset.clamp(0, _scrollController.position.maxScrollExtent),
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
+            return KeyWidget(
+              key: _keyKeys[index],
+              note: note,
+              highlighted: highlightTable[index],
+              highlightColor: highlightColor,
+            );
+          }).toList(),
+        ),
+      ),
     );
   }
 
@@ -65,95 +104,5 @@ class _KeyboardState extends State<Keyboard> {
   void dispose() {
     _scrollController.dispose();
     super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final offset = 12 * (1 + widget.offset);
-    final keyNotes = notes.sublist(offset, offset + 36);
-    final highlightTable = widget.highlightTable ?? List.filled(36, false);
-    final highlightColor = widget.highlightColor ?? 1;
-
-    _keyWidgetKeys.clear(); // reset keys cho mỗi lần build
-
-    return Container(
-      height: 140,
-      child: SingleChildScrollView(
-        controller: _scrollController,
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Stack(
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: _buildWhiteKeys(keyNotes, highlightTable, highlightColor),
-            ),
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: _buildBlackKeys(keyNotes, highlightTable, highlightColor),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  List<Widget> _buildWhiteKeys(List<Note> keyNotes, List<bool> highlightTable, int highlightColor) {
-    List<Widget> whiteKeys = [];
-
-    for (int i = 0; i < keyNotes.length; i++) {
-      final note = keyNotes[i];
-      if (note.isWhite) {
-        final key = GlobalKey();
-        _keyWidgetKeys[i] = key;
-
-        whiteKeys.add(
-          KeyWidget(
-            key: key,
-            note: note,
-            highlighted: highlightTable[i],
-            highlightColor: highlightColor,
-          ),
-        );
-      }
-    }
-
-    return whiteKeys;
-  }
-
-  List<Widget> _buildBlackKeys(List<Note> keyNotes, List<bool> highlightTable, int highlightColor) {
-    List<Widget> blackKeys = [];
-    int whiteKeyCount = 0;
-
-    for (int i = 0; i < keyNotes.length; i++) {
-      final note = keyNotes[i];
-
-      if (note.isWhite) {
-        blackKeys.add(const SizedBox(width: 40, height: 80));
-        whiteKeyCount++;
-      } else {
-        final key = GlobalKey();
-        _keyWidgetKeys[i] = key;
-
-        blackKeys.add(
-          Padding(
-            padding: EdgeInsets.only(left: (whiteKeyCount * 40.0) - 12),
-            child: KeyWidget(
-              key: key,
-              note: note,
-              highlighted: highlightTable[i],
-              highlightColor: highlightColor,
-            ),
-          ),
-        );
-      }
-    }
-
-    return blackKeys;
   }
 }

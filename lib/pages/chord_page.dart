@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:piano/logic/constant.dart';
 import 'package:piano/pages/playbox.dart';
-import '../logic/chord.dart';
-import '../logic/constant.dart';
 import '../logic/helper.dart';
 import '../logic/key.dart';
-import '../logic/db.dart';
 import 'chord_detail.dart';
 import 'chord_selector.dart';
 import 'key_board.dart';
@@ -13,31 +12,15 @@ import 'key_selector.dart';
 const int maxOctaveAdj = 1;
 const int minOctaveAdj = -1;
 
-class ChordPageArguments {
-  final String? selectedKey;
-  final String? selectedChord;
-  final String? path;
-  final String? inversion;
-
-  ChordPageArguments({
-    this.selectedKey,
-    this.selectedChord,
-    this.path,
-    this.inversion,
-  });
-}
-
 class ChordPage extends StatefulWidget {
   final String? selectedKey;
   final String? selectedChord;
-  final String? path;
   final String? inversion;
 
   const ChordPage({
     Key? key,
     this.selectedKey,
     this.selectedChord,
-    this.path,
     this.inversion,
   }) : super(key: key);
 
@@ -51,9 +34,7 @@ class _ChordPageState extends State<ChordPage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _updateTitle();
-    });
+    // _updateTitle();
   }
 
   @override
@@ -62,10 +43,31 @@ class _ChordPageState extends State<ChordPage> {
     if (oldWidget.selectedKey != widget.selectedKey ||
         oldWidget.selectedChord != widget.selectedChord ||
         oldWidget.inversion != widget.inversion) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _updateTitle();
-      });
+      _updateTitle();
     }
+  }
+@override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _updateTitle();
+  }
+  void _updateTitle() {
+    final decoded = _urlDecode();
+    String title = AppConstants.titlePrefix;
+
+    if (decoded.selectedChord != null) {
+      title += " - ${decoded.selectedChord}";
+    } else if (decoded.selectedKey != null) {
+      title += " - Key ${decoded.selectedKey}";
+    }
+
+    // In Flutter web, you can update the browser title
+    SystemChrome.setApplicationSwitcherDescription(
+      ApplicationSwitcherDescription(
+        label: title,
+        primaryColor: Theme.of(context).primaryColor.value,
+      ),
+    );
   }
 
   void raiseOctave() {
@@ -82,145 +84,140 @@ class _ChordPageState extends State<ChordPage> {
     });
   }
 
-  Map<String, dynamic> urlDecode() {
+  ({String? selectedKey, String? selectedChord, int inversion}) _urlDecode() {
     String? selectedKey = urlDecodeKey(widget.selectedKey);
     String? selectedChord = urlDecodeChord(widget.selectedChord);
-    int inversion;
 
-    if (widget.inversion == null || widget.inversion!.isEmpty) {
-      inversion = 0;
-    } else {
-      inversion = int.tryParse(widget.inversion!) ?? 0;
+    int inversion = 0;
+    if (widget.inversion != null) {
+      final parsed = int.tryParse(widget.inversion!);
+      if (parsed != null && !parsed.isNaN) {
+        inversion = parsed;
+      }
     }
 
-    return {
-      'selectedKey': selectedKey,
-      'selectedChord': selectedChord,
-      'inversion': inversion,
-    };
-  }
-
-  void _updateTitle() {
-    final decoded = urlDecode();
-    final selectedKey = decoded['selectedKey'] as String?;
-    final selectedChord = decoded['selectedChord'] as String?;
-
-    String title = AppConstants.titlePrefix;
-    if (selectedChord != null) {
-      title += " - $selectedChord";
-    } else if (selectedKey != null) {
-      title += " - Key $selectedKey";
-    }
-    debugPrint("Title: $title");
+    return (
+      selectedKey: selectedKey,
+      selectedChord: selectedChord,
+      inversion: inversion,
+    );
   }
 
   void _navigateToNotFound() {
-    if (mounted) {
-      Navigator.of(context).pushReplacementNamed('/404');
-    }
-  }
-
-  Chord? findChordByName(String keyName, String chordName) {
-    final keyChords = chords[keyName];
-    if (keyChords == null) return null;
-
-    try {
-      return keyChords.firstWhere(
-            (chord) {
-          if (chord.fullName == chordName) return true;
-          if (chord.alias.contains(chordName)) return true;
-          return false;
-        },
-      );
-    } catch (e) {
-      return null;
-    }
-  }
-
-  // Helper method để đảm bảo highlightTable có đúng length
-  List<bool> _ensureHighlightTableLength(List<bool> highlightTable, int expectedLength) {
-    if (highlightTable.length == expectedLength) {
-      return highlightTable;
-    } else if (highlightTable.length < expectedLength) {
-      // Nếu ngắn hơn, thêm false vào cuối
-      return [...highlightTable, ...List.filled(expectedLength - highlightTable.length, false)];
-    } else {
-      // Nếu dài hơn, cắt bớt
-      return highlightTable.sublist(0, expectedLength);
-    }
+    Navigator.of(context).pushReplacementNamed('/404');
   }
 
   @override
   Widget build(BuildContext context) {
-    final decoded = urlDecode();
-    final selectedKeyStr = decoded['selectedKey'] as String?;
-    final selectedChord = decoded['selectedChord'] as String?;
-    final inversion = decoded['inversion'] as int;
+    final decoded = _urlDecode();
+    final selectedKey = decoded.selectedKey;
+    final selectedChord = decoded.selectedChord;
+    final inversion = decoded.inversion;
 
-    // Kiểm tra selectedKey có hợp lệ không
-    if (selectedKeyStr == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _navigateToNotFound());
+    print("selectedKey = $selectedKey");
+    print("selectedChord = $selectedChord");
+    print("inversion = $inversion");
+    final keyName123 = parseKeyName(selectedKey!);
+    print("is key valid: ${keySimpleList.contains(keyName123)}");
+
+    final chord12 = findChordByName(selectedKey!, selectedChord!);
+    print("found chord: $chord12");
+
+    final keyName12 = parseKeyName(selectedKey!);
+    print("parsed keyName: $keyName12");
+    // final chordList = chords['C'];
+    // if (chordList != null) {
+    //   for (var chord in chordList) {
+    //     print('Alias for chord: ${chord.alias}');
+    //   }
+    // }
+
+
+    // Validation checks
+    if (selectedKey == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _navigateToNotFound();
+      });
       return const SizedBox.shrink();
     }
 
-    // Tìm KeyName từ string
-    KeyName? selectedKeyNullable;
-    try {
-      selectedKeyNullable = keySimpleList.firstWhere(
-            (key) => key.name == selectedKeyStr,
-      );
-    } catch (e) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _navigateToNotFound());
+    final keyName = parseKeyName(selectedKey);
+    if (keyName == null || !keySimpleList.contains(keyName)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _navigateToNotFound();
+      });
       return const SizedBox.shrink();
     }
-
-    final KeyName selectedKey = selectedKeyNullable;
 
     if (selectedChord != null) {
-      final chord = findChordByName(selectedKeyStr, selectedChord);
-      if (chord == null) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => _navigateToNotFound());
+      return _buildChordView(selectedKey, selectedChord, inversion);
+    } else {
+      return _buildKeyView(selectedKey);
+    }
+  }
+
+
+  Widget _buildChordView(
+    String selectedKey,
+    String selectedChord,
+    int inversion,
+  ) {
+    final chord = findChordByName(selectedKey, selectedChord);
+
+    if (chord == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _navigateToNotFound();
+      });
+      return const SizedBox.shrink();
+    }
+    final keyName = parseKeyName(selectedKey);
+    if (keyName == null || !keySimpleList.contains(keyName)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _navigateToNotFound();
+      });
+      return const SizedBox.shrink();
+    }
+    List<bool> highlightTable;
+    int colorIndex;
+
+    if (inversion == 0) {
+      highlightTable = chordAlignMid(getHighlightTable(chord));
+      colorIndex = keySimpleList.indexOf(keyName) + 1;
+    } else {
+      if (chord.inversions.length < inversion) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _navigateToNotFound();
+        });
         return const SizedBox.shrink();
       }
 
-      List<bool> highlightTable;
-      int colorIndex;
+      highlightTable = chordAlignMid(
+        getHighlightTable(chord.inversions[inversion - 1]),
+      );
+      colorIndex =
+          keySimpleList
+              .map((str) => keys[str]!)
+              .toList()
+              .indexOf(chord.inversions[inversion - 1].key) +
+          1;
+    }
 
-      if (inversion == 0) {
-        highlightTable = chordAlignMid(getHighlightTable(chord));
-        colorIndex = keySimpleList.indexOf(selectedKey) + 1;
-      } else {
-        if (chord.inversions.length < inversion) {
-          WidgetsBinding.instance.addPostFrameCallback((_) => _navigateToNotFound());
-          return const SizedBox.shrink();
-        }
-        highlightTable = chordAlignMid(getHighlightTable(chord.inversions[inversion - 1]));
-        colorIndex = keySimpleList
-            .map((k) => keys[k])
-            .toList()
-            .indexOf(chord.inversions[inversion - 1].key) + 1;
-      }
+    final color = keySimpleList.indexOf(keyName) + 1;
 
-      final color = keySimpleList.indexOf(selectedKey) + 1;
 
-      // Đảm bảo highlightTable có đúng length (36 keys cho 3 octaves)
-      highlightTable = _ensureHighlightTableLength(highlightTable, 36);
 
-      debugPrint("highlightTable length: ${highlightTable.length}");
-      debugPrint("octaveAdj: $octaveAdj");
-
-      return Scaffold(
-        body: ListView(
+    return Scaffold(
+      body: SingleChildScrollView(
+        child: Column(
           children: [
             Keyboard(
-              offset: octaveAdj,
-              highlightTable: highlightTable,
-              highlightColor: colorIndex,
+              props: KeyboardProps(
+                offset: octaveAdj,
+                highlightTable: highlightTable,
+                highlightColor: colorIndex,
+              ),
             ),
-            KeySelector(
-              selectedKey: selectedKey.name,
-              link: true,
-            ),
+            KeySelector(selectedKey: selectedKey, link: true),
             Playbox(
               offset: octaveAdj,
               highlightTable: highlightTable,
@@ -230,91 +227,28 @@ class _ChordPageState extends State<ChordPage> {
               lowerDisabled: octaveAdj == minOctaveAdj,
               color: color,
             ),
-            ChordDetail(
-              chord: chord,
-              inversion: inversion,
-              color: color,
-            ),
-            ChordSelector(selectedKey: selectedKey),
+            ChordDetail(chord: chord, inversion: inversion, color: color),
+            ChordSelector(selectedKey: keyName),
           ],
         ),
-      );
-    } else {
-      // Không có chord được chọn, hiển thị key selection view
-      return Scaffold(
-        body: ListView(
-          children: [
-            const Keyboard(offset: 0),
-            KeySelector(
-              selectedKey: selectedKey.name,
-              link: true,
-            ),
-            ChordSelector(selectedKey: selectedKey),
-          ],
-        ),
-      );
-    }
-  }
-}
-
-// Extension class for route handling
-class ChordPageRoute extends MaterialPageRoute<void> {
-  ChordPageRoute({
-    required String? selectedKey,
-    required String? selectedChord,
-    required String? inversion,
-  }) : super(
-    builder: (context) => ChordPage(
-      selectedKey: selectedKey,
-      selectedChord: selectedChord,
-      inversion: inversion,
-    ),
-  );
-}
-
-// Helper function to create route from URL parameters
-Route<dynamic> generateChordPageRoute(RouteSettings settings) {
-  final uri = Uri.parse(settings.name ?? '');
-  final pathSegments = uri.pathSegments;
-
-  if (pathSegments.length >= 2 && pathSegments[0] == 'chord') {
-    final selectedKey = pathSegments[1];
-    final selectedChord = pathSegments.length > 2 ? pathSegments[2] : null;
-    final inversion = pathSegments.length > 3 ? pathSegments[3] : null;
-
-    return ChordPageRoute(
-      selectedKey: selectedKey,
-      selectedChord: selectedChord,
-      inversion: inversion,
+      ),
     );
   }
 
-  // Return 404 route if path doesn't match
-  return MaterialPageRoute(
-    builder: (context) => const NotFoundPage(),
-  );
-}
+  Widget _buildKeyView(String selectedKey) {
 
-// Placeholder for 404 page
-class NotFoundPage extends StatelessWidget {
-  const NotFoundPage({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
+    final keyName = parseKeyName(selectedKey);
+    if (keyName == null) {
+      _navigateToNotFound();
+      return const SizedBox.shrink();
+    }
     return Scaffold(
-      appBar: AppBar(title: const Text('Page Not Found')),
-      body: const Center(
+      body: SingleChildScrollView(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text(
-              '404 - Page Not Found',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 8),
-            Text('The requested page could not be found.'),
+            Keyboard(props: KeyboardProps(offset: 0)),
+            KeySelector(selectedKey: selectedKey, link: true),
+            ChordSelector(selectedKey: keyName),
           ],
         ),
       ),

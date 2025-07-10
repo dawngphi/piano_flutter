@@ -1,9 +1,21 @@
 import 'package:flutter/material.dart';
+
 import '../logic/key.dart';
-import '../logic/note.dart';
+
+class KeyProps {
+  final dynamic note;
+  final bool highlighted;
+  final int highlightColor;
+
+  KeyProps({
+    required this.note,
+    required this.highlighted,
+    required this.highlightColor,
+  });
+}
 
 class KeyWidget extends StatefulWidget {
-  final Note note;
+  final dynamic note;
   final bool highlighted;
   final int highlightColor;
 
@@ -15,13 +27,21 @@ class KeyWidget extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<KeyWidget> createState() => _KeyWidgetState();
+  _KeyWidgetState createState() => _KeyWidgetState();
 }
 
 class _KeyWidgetState extends State<KeyWidget> {
   bool clicked = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // Equivalent to window.addEventListener('mouseup', this.pageMouseUp, false)
+    // In Flutter, we handle this through GestureDetector's onPanEnd or onTapUp
+  }
+
   void _handleTapDown(TapDownDetails details) {
+    // Equivalent to handleMouseDown
     setState(() {
       clicked = true;
     });
@@ -29,119 +49,109 @@ class _KeyWidgetState extends State<KeyWidget> {
   }
 
   void _handleTapUp(TapUpDetails details) {
+    // Equivalent to handleMouseUp
     setState(() {
       clicked = false;
     });
   }
 
   void _handleTapCancel() {
+    // Equivalent to pageMouseUp - handles when tap is cancelled
+    if (!clicked) return;
     setState(() {
       clicked = false;
     });
   }
 
-  Color _getHighlightColor() {
-    // Define your color palette here
-    final colors = [
-      Colors.red,
-      Colors.blue,
-      Colors.green,
-      Colors.orange,
-      Colors.purple,
-      Colors.teal,
-      Colors.pink,
-      Colors.amber,
-      Colors.indigo,
-      Colors.cyan,
-      Colors.lime,
-      Colors.brown,
-    ];
+  void _handlePanEnd(DragEndDetails details) {
+    // Additional handling for when user drags away from the key
+    if (!clicked) return;
+    setState(() {
+      clicked = false;
+    });
+  }
 
-    if (widget.highlightColor >= 0 && widget.highlightColor < colors.length) {
-      return colors[widget.highlightColor];
+  String _getKeyClasses() {
+    String baseClass = 'keyboard-key';
+    String colorClass = widget.note.bw == BlackWhite.white ? 'white' : 'black';
+    String clickedClass = clicked ? ' clicked' : '';
+    String highlightClass = widget.highlighted
+        ? ' active color-${widget.highlightColor}'
+        : '';
+
+    return '$baseClass $colorClass$clickedClass$highlightClass';
+  }
+
+  Color _getKeyColor() {
+    if (widget.highlighted) {
+      // Return highlight color based on highlightColor value
+      switch (widget.highlightColor) {
+        case 1:
+          return Colors.blue.withOpacity(0.7);
+        case 2:
+          return Colors.red.withOpacity(0.7);
+        case 3:
+          return Colors.green.withOpacity(0.7);
+        default:
+          return Colors.blue.withOpacity(0.7);
+      }
     }
-    return Colors.red; // Default color
+
+    if (clicked) {
+      return widget.note.bw == BlackWhite.white
+          ? Colors.grey.shade300
+          : Colors.grey.shade700;
+    }
+
+    return widget.note.bw == BlackWhite.white
+        ? Colors.white
+        : Colors.black;
+  }
+
+  Color _getTextColor() {
+    return widget.note.bw == BlackWhite.white ? Colors.black : Colors.white;
   }
 
   @override
   Widget build(BuildContext context) {
-    final note = widget.note;
-    final isWhiteKey = note.bw == BlackWhite.white;
-
-    // Key dimensions
-    final keyWidth = isWhiteKey ? 40.0 : 24.0;
-    final keyHeight = isWhiteKey ? 120.0 : 80.0;
-
-    // Base colors
-    Color baseColor;
-    Color pressedColor;
-    Color borderColor;
-
-    if (isWhiteKey) {
-      baseColor = Colors.white;
-      pressedColor = Colors.grey.shade300;
-      borderColor = Colors.grey.shade400;
-    } else {
-      baseColor = Colors.grey.shade900;
-      pressedColor = Colors.grey.shade700;
-      borderColor = Colors.grey.shade800;
-    }
-
-    // Apply highlight color if highlighted
-    if (widget.highlighted) {
-      final highlightColor = _getHighlightColor();
-      baseColor = highlightColor.withOpacity(0.7);
-      pressedColor = highlightColor.withOpacity(0.9);
-    }
-
-    // Apply clicked state
-    final currentColor = clicked ? pressedColor : baseColor;
-
     return GestureDetector(
       onTapDown: _handleTapDown,
       onTapUp: _handleTapUp,
       onTapCancel: _handleTapCancel,
+      onPanEnd: _handlePanEnd,
       child: Container(
-        width: keyWidth,
-        height: keyHeight,
-        margin: const EdgeInsets.symmetric(horizontal: 0.5),
+        width: widget.note.bw == BlackWhite.white ? 40 : 30,
+        height: widget.note.bw == BlackWhite.white ? 120 : 80,
+        margin: EdgeInsets.only(
+          right: widget.note.bw == BlackWhite.white ? 2 : 0,
+          left: widget.note.bw == BlackWhite.black ? -15 : 0,
+        ),
         decoration: BoxDecoration(
-          color: currentColor,
+          color: _getKeyColor(),
           border: Border.all(
-            color: borderColor,
+            color: Colors.grey.shade400,
             width: 1,
           ),
-          borderRadius: const BorderRadius.only(
-            bottomLeft: Radius.circular(4),
-            bottomRight: Radius.circular(4),
-          ),
-          boxShadow: clicked
-              ? []
-              : [
+          borderRadius: BorderRadius.circular(4),
+          boxShadow: clicked ? [] : [
             BoxShadow(
               color: Colors.black.withOpacity(0.2),
               blurRadius: 2,
-              offset: const Offset(0, 2),
+              offset: Offset(0, 2),
             ),
           ],
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                note.toString(),
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w500,
-                  color: isWhiteKey
-                      ? (widget.highlighted ? Colors.white : Colors.black87)
-                      : Colors.white,
-                ),
-              ),
+        child: Container(
+          alignment: Alignment.bottomCenter,
+          padding: EdgeInsets.only(bottom: 8),
+          child: Text(
+            widget.note.toString(),
+            style: TextStyle(
+              color: _getTextColor(),
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
             ),
-          ],
+          ),
         ),
       ),
     );

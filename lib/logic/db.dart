@@ -18,6 +18,7 @@ class ChordTableEntry {
 
 const List<ChordTableEntry> chordTable = [
   ChordTableEntry(aliases: ["", "M"], name: "major", quality: "Major", intervals: [0, 4, 3]),
+  ChordTableEntry(aliases: ["", "M"], name: "major", quality: "Major", intervals: [0, 4, 3]),
   ChordTableEntry(aliases: ["m", "min", "-"], name: "minor", quality: "Minor", intervals: [0, 3, 4]),
   ChordTableEntry(aliases: ["maj7", "Δ", "ma7", "M7", "Maj7"], name: "major seventh", quality: "Major", intervals: [0, 4, 3, 4]),
   ChordTableEntry(aliases: ["7", "dom"], name: "dominant seventh", quality: "Major", intervals: [0, 4, 3, 3]),
@@ -299,12 +300,12 @@ List<Note> _generateNotes() {
   List<Note> notes = [];
   for (Octave oct in Octave.values) {
     for (KeyName k in chromaticName) {
-      notes.add(Note(key: k, octave: oct));
+      notes.add(Note( k,  oct));
     }
   }
   return notes;
 }
-
+final List<Note> allNotes = _generateNotes();
 final List<Note> notes = _generateNotes();
 
 Map<String, List<Chord>> _generateChords() {

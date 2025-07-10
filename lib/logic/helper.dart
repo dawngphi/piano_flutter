@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'chord.dart';
+import 'db.dart';
 import 'key.dart';
-// import 'db.dart'; // Assuming db.dart exists with allChords and chords
 
 class HighlightResult {
   final List<bool> highlightTable;
@@ -48,12 +48,86 @@ List<bool> chordAlignMid(List<bool> highlightTable) {
 }
 
 Chord? findChordByName(String key, String chordName) {
-  // This would need the chords map from db.dart
-  // return chords[key]?.firstWhere(
-  //   (c) => c.name == chordName,
-  //   orElse: () => null,
-  // );
-  throw UnimplementedError('Requires chords map from db.dart');
+  final chordList = chords[key];
+  if (chordList == null) {
+    print('Key not found: $key');
+    return null;
+  }
+
+  // Normalize the search chord name
+  String normalizedChordName = _normalizeChordName(chordName);
+  String fullChordName = key + chordName;
+  String normalizedFullChordName = key + normalizedChordName;
+
+  print('Searching for chord: $chordName (normalized: $normalizedChordName)');
+  print('Full chord name: $fullChordName (normalized: $normalizedFullChordName)');
+
+  for (final chord in chordList) {
+    print('Testing chord aliases: ${chord.alias}');
+
+    // Check each alias
+    for (final alias in chord.alias) {
+      // Direct match
+      if (alias == fullChordName || alias == normalizedFullChordName) {
+        print('Found direct match: $alias');
+        return chord;
+      }
+
+      // Check if alias ends with the chord name (with or without normalization)
+      if (alias.endsWith(chordName) || alias.endsWith(normalizedChordName)) {
+        print('Found ending match: $alias');
+        return chord;
+      }
+
+      // Extract chord part from alias (remove key part)
+      String aliasChordPart = alias.replaceFirst(key, '');
+      String normalizedAliasChordPart = _normalizeChordName(aliasChordPart);
+
+      if (aliasChordPart == chordName ||
+          aliasChordPart == normalizedChordName ||
+          normalizedAliasChordPart == chordName ||
+          normalizedAliasChordPart == normalizedChordName) {
+        print('Found chord part match: $aliasChordPart -> $chordName');
+        return chord;
+      }
+    }
+  }
+
+  print('No matching chord found for: $fullChordName');
+  return null;
+}
+
+// Helper function to normalize chord names for better matching
+String _normalizeChordName(String chordName) {
+  // Handle common chord name variations
+  String normalized = chordName;
+
+  // Major chord variations
+  if (normalized == 'Maj' || normalized == 'maj' || normalized == 'Major') {
+    normalized = 'M';
+  }
+
+  // Minor chord variations
+  if (normalized == 'Min' || normalized == 'min' || normalized == 'Minor') {
+    normalized = 'm';
+  }
+
+  // Dominant 7th variations
+  if (normalized == 'Dom' || normalized == 'dom' || normalized == 'Dominant') {
+    normalized = '7';
+  }
+
+  // Diminished variations
+  if (normalized == 'Dim' || normalized == 'dim' || normalized == 'Diminished') {
+    normalized = 'dim';
+  }
+
+  // Augmented variations
+  if (normalized == 'Aug' || normalized == 'aug' || normalized == 'Augmented') {
+    normalized = 'aug';
+  }
+
+  return normalized;
 }
 
 String? urlDecodeKey(String? key) {

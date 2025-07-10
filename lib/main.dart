@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:piano/pages/chord_detail.dart';
 import 'package:piano/pages/index_page.dart';
-import 'package:piano/pages/nav.dart';
-import 'package:piano/pages/chord_page.dart'; // 👈 Thêm import này
-import 'logic/audio.dart';
+import 'package:piano/pages/chord_page.dart';
 
 void main() {
   runApp(PianoApp());
@@ -15,15 +12,35 @@ class PianoApp extends StatelessWidget {
     return MaterialApp(
       title: 'Piano Demo',
       debugShowCheckedModeBanner: false,
-      home: IndexPage(),
+      home: const IndexPage(),
 
-      // 👇 Thêm dòng này để xử lý route như /chord/C/
-      onGenerateRoute: generateChordPageRoute,
+      // 👇 THÊM CÁI NÀY
+      onGenerateRoute: (RouteSettings settings) {
+        final uri = Uri.parse(settings.name!);
 
-      // 👇 Optional: xử lý nếu route không khớp
-      onUnknownRoute: (settings) => MaterialPageRoute(
-        builder: (context) => const NotFoundPage(),
-      ),
+        if (uri.pathSegments.length == 3 &&
+            uri.pathSegments[0] == 'chord') {
+          final selectedKey = uri.pathSegments[1];
+          final selectedChord = uri.pathSegments[2];
+
+          return MaterialPageRoute(
+            builder: (context) => ChordPage(
+              selectedKey: selectedKey,
+              selectedChord: selectedChord,
+            ),
+          );
+        }
+
+        // Add more route parsing here if needed
+
+        // fallback: 404 page
+        return MaterialPageRoute(
+          builder: (context) => Scaffold(
+            body: Center(child: Text('404 - Page not found')),
+          ),
+        );
+      },
     );
   }
 }
+

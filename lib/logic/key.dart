@@ -24,13 +24,32 @@ enum KeyName {
   String toString() => name;
 }
 
-KeyName? parseKeyName(String keyString) {
+KeyName? parseKeyName(String input) {
+  // 1. Thử tìm theo tên trong enum (Unicode như "C♯")
   try {
-    return KeyName.values.firstWhere(
-          (keyName) => keyName.name == keyString,
-    );
-  } catch (e) {
-    return null;
+    return KeyName.values.firstWhere((keyName) => keyName.name == input);
+  } catch (_) {
+    // 2. Nếu không tìm được, fallback về string cơ bản (chẳng hạn URL input)
+    switch (input) {
+      case 'C': return KeyName.c;
+      case 'C#': return KeyName.cSharp;
+      case 'Db': return KeyName.dFlat;
+      case 'D': return KeyName.d;
+      case 'D#': return KeyName.dSharp;
+      case 'Eb': return KeyName.eFlat;
+      case 'E': return KeyName.e;
+      case 'F': return KeyName.f;
+      case 'F#': return KeyName.fSharp;
+      case 'Gb': return KeyName.gFlat;
+      case 'G': return KeyName.g;
+      case 'G#': return KeyName.gSharp;
+      case 'Ab': return KeyName.aFlat;
+      case 'A': return KeyName.a;
+      case 'A#': return KeyName.aSharp;
+      case 'Bb': return KeyName.bFlat;
+      case 'B': return KeyName.b;
+      default: return null;
+    }
   }
 }
 
