@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../logic/key.dart';
 
 class KeyProps {
@@ -87,13 +86,13 @@ class _KeyWidgetState extends State<KeyWidget> {
       // Return highlight color based on highlightColor value
       switch (widget.highlightColor) {
         case 1:
-          return Colors.blue.withOpacity(0.7);
+          return Colors.blue.withValues(alpha: 0.7);
         case 2:
-          return Colors.red.withOpacity(0.7);
+          return Colors.red.withValues(alpha: 0.7);
         case 3:
-          return Colors.green.withOpacity(0.7);
+          return Colors.green.withValues(alpha: 0.7);
         default:
-          return Colors.blue.withOpacity(0.7);
+          return Colors.blue.withValues(alpha: 0.7);
       }
     }
 
@@ -114,17 +113,19 @@ class _KeyWidgetState extends State<KeyWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final isWhiteKey = widget.note.bw == BlackWhite.white;
+    final isBlackKey = widget.note.bw == BlackWhite.black;
+// print("ádasdadasdasdasdadasdasdasdadasdadadadasdasdasdasd${widget.note.toString()}");
     return GestureDetector(
       onTapDown: _handleTapDown,
       onTapUp: _handleTapUp,
       onTapCancel: _handleTapCancel,
       onPanEnd: _handlePanEnd,
       child: Container(
-        width: widget.note.bw == BlackWhite.white ? 40 : 30,
-        height: widget.note.bw == BlackWhite.white ? 120 : 80,
+        width: isWhiteKey ? 40 : 30,
+        height: isWhiteKey ? 120 : 80,
         margin: EdgeInsets.only(
-          right: widget.note.bw == BlackWhite.white ? 2 : 0,
-          left: widget.note.bw == BlackWhite.black ? -15 : 0,
+          right: isWhiteKey ? 2 : 0,
         ),
         decoration: BoxDecoration(
           color: _getKeyColor(),

@@ -55,11 +55,7 @@ dev_dependencies:
 # The following section is specific to Flutter packages.
 flutter:
   assets:
-    - assets/samples_piano_F2.mp3
-    - assets/samples_piano_F3.mp3
-    - assets/samples_piano_F4.mp3
-    - assets/samples_piano_F5.mp3
-    - assets/samples_piano_F6.mp3
+    - assets/audio/
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

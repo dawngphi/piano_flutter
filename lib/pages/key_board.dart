@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../logic/db.dart';
+import '../logic/key.dart';
 import 'key_page.dart';
+
 class KeyboardProps {
   final int offset;
   final List<bool>? highlightTable;
@@ -29,7 +31,7 @@ class _KeyboardState extends State<Keyboard> {
   @override
   void initState() {
     super.initState();
-    // Initialize keys for each note (36 keys)
+    // Khởi tạo keys cho mỗi nốt nhạc (36 phím)
     for (int i = 0; i < 36; i++) {
       _keyKeys.add(GlobalKey());
     }
@@ -39,7 +41,6 @@ class _KeyboardState extends State<Keyboard> {
   void didUpdateWidget(Keyboard oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    // Equivalent to componentDidUpdate - scroll highlighted keys into view
     if (widget.props.highlightTable != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _scrollHighlightedKeysIntoView();
@@ -50,11 +51,13 @@ class _KeyboardState extends State<Keyboard> {
   void _scrollHighlightedKeysIntoView() {
     if (widget.props.highlightTable == null) return;
 
-    final firstIndex = widget.props.highlightTable!.indexWhere((item) => item == true);
-    final lastIndex = widget.props.highlightTable!.lastIndexWhere((item) => item == true);
+    final highlightTable = _createSafeHighlightTable();
+
+    final firstIndex = highlightTable.indexWhere((item) => item == true);
+    final lastIndex = highlightTable.lastIndexWhere((item) => item == true);
 
     if (firstIndex != -1 && lastIndex != -1) {
-      // Scroll to the last highlighted key first
+      // Cuộn đến phím được highlight cuối cùng trước
       if (_keyKeys[lastIndex].currentContext != null) {
         Scrollable.ensureVisible(
           _keyKeys[lastIndex].currentContext!,
@@ -62,7 +65,7 @@ class _KeyboardState extends State<Keyboard> {
         );
       }
 
-      // Then scroll to the first highlighted key
+      // Sau đó cuộn đến phím được highlight đầu tiên
       if (_keyKeys[firstIndex].currentContext != null) {
         Scrollable.ensureVisible(
           _keyKeys[firstIndex].currentContext!,
@@ -72,29 +75,87 @@ class _KeyboardState extends State<Keyboard> {
     }
   }
 
+  // Phương thức helper để đảm bảo highlightTable luôn có đúng 36 phần tử
+  List<bool> _createSafeHighlightTable() {
+    if (widget.props.highlightTable == null) {
+      return List.filled(36, false);
+    }
+
+    final originalTable = widget.props.highlightTable!;
+
+    if (originalTable.length == 36) {
+      return originalTable;
+    }
+
+    List<bool> safeTable = List.filled(36, false);
+
+    // Copy các giá trị gốc đến số lượng tối thiểu của cả hai độ dài
+    final copyLength = originalTable.length < 36 ? originalTable.length : 36;
+    for (int i = 0; i < copyLength; i++) {
+      safeTable[i] = originalTable[i];
+    }
+
+    return safeTable;
+  }
+
   @override
   Widget build(BuildContext context) {
     int offset = 12 * (1 + widget.props.offset);
     List<dynamic> notes = allNotes.sublist(offset, offset + 36);
-    List<bool> highlightTable = widget.props.highlightTable ?? List.filled(36, false);
+    List<bool> highlightTable = _createSafeHighlightTable();
     int highlightColor = widget.props.highlightColor ?? 1;
+
+    // Tách các phím trắng và đen
+    List<Widget> whiteKeys = [];
+    List<Widget> blackKeys = [];
+    double currentPosition = 0;
+
+    for (int index = 0; index < notes.length; index++) {
+      final note = notes[index];
+      final isWhiteKey = note.bw == BlackWhite.white;
+
+      if (isWhiteKey) {
+        whiteKeys.add(
+          Positioned(
+            left: currentPosition,
+            child: KeyWidget(
+              key: _keyKeys[index],
+              note: note,
+              highlighted: highlightTable[index],
+              highlightColor: highlightColor,
+            ),
+          ),
+        );
+        currentPosition += 42; // 40 width + 2 margin
+      } else {
+        // Phím đen được đặt giữa các phím trắng
+        blackKeys.add(
+          Positioned(
+            left: currentPosition - 21, // Đặt ở giữa phím trắng trước đó
+            child: KeyWidget(
+              key: _keyKeys[index],
+              note: note,
+              highlighted: highlightTable[index],
+              highlightColor: highlightColor,
+            ),
+          ),
+        );
+      }
+    }
 
     return Container(
       child: SingleChildScrollView(
         controller: _scrollController,
         scrollDirection: Axis.horizontal,
-        child: Row(
-          children: notes.asMap().entries.map((entry) {
-            int index = entry.key;
-            dynamic note = entry.value;
-
-            return KeyWidget(
-              key: _keyKeys[index],
-              note: note,
-              highlighted: highlightTable[index],
-              highlightColor: highlightColor,
-            );
-          }).toList(),
+        child: Container(
+          height: 120,
+          width: currentPosition,
+          child: Stack(
+            children: [
+              ...whiteKeys,
+              ...blackKeys,
+            ],
+          ),
         ),
       ),
     );

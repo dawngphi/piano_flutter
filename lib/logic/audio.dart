@@ -1,14 +1,9 @@
-import 'dart:math' as math;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/services.dart';
+import 'dart:math' as math;
 import 'key.dart';
 
-enum AudioSampleState {
-  undefined,
-  loading,
-  loaded,
-  error,
-}
+enum AudioSampleState { undefined, loading, loaded, error }
 
 class AudioSample {
   final AudioSampleState state;
@@ -41,7 +36,10 @@ class AudioSample {
 
 class Piano {
   late String extension;
-  late AudioPlayer _audioPlayer;
+  bool _isInitialized = false;
+  bool _isInitializing = false;
+  bool _silentMode = false;
+  String? _fallbackAssetPath;
 
   final Map<Octave, AudioSample> samples = {
     Octave.two: const AudioSample.undefined(),
@@ -51,170 +49,182 @@ class Piano {
     Octave.six: const AudioSample.undefined(),
   };
 
-  Piano() {
-    _audioPlayer = AudioPlayer();
-    _initializeAudio();
-  }
+  final Set<AudioPlayer> _activePlayers = {};
 
   Future<void> _initializeAudio() async {
-    // Determine supported extension based on platform
-    // For Flutter, we'll primarily use mp3 or wav
-    extension = 'mp3'; // Default to mp3 for better compression
+    if (_isInitialized || _isInitializing) return;
+    _isInitializing = true;
 
-    // Try to determine the best format for the platform
     try {
-      // Check if assets exist with different extensions
-      await rootBundle.load('assets/audio/samples_piano_F4.mp3');
+      final supportedExtensions = ['ogg', 'mp3', 'wav', 'm4a'];
       extension = 'mp3';
-    } catch (e) {
-      try {
-        await rootBundle.load('assets/audio/samples_piano_F4.wav');
-        extension = 'wav';
-      } catch (e) {
-        try {
-          await rootBundle.load('assets/audio/samples_piano_F4.ogg');
-          extension = 'ogg';
-        } catch (e) {
-          extension = 'mp3'; // Fallback
-        }
-      }
-    }
+      _fallbackAssetPath = null;
+      bool foundAnyAudio = false;
 
-    // Load samples in all octaves
-    _loadAllSamples();
+      for (String ext in supportedExtensions) {
+        for (Octave octave in Octave.values) {
+          try {
+            final testPath = 'assets/audio/samples_piano_F${octave.value}.$ext';
+            final data = await rootBundle.load(testPath);
+            if (data.lengthInBytes > 0) {
+              extension = ext;
+              _fallbackAssetPath = 'audio/samples_piano_F${octave.value}.$ext';
+              foundAnyAudio = true;
+              break;
+            }
+          } catch (_) {}
+        }
+        if (foundAnyAudio) break;
+      }
+
+      if (!foundAnyAudio) {
+        _silentMode = true;
+      }
+
+      await _loadAllSamples();
+      _isInitialized = true;
+    } catch (e) {
+      _silentMode = true;
+    } finally {
+      _isInitializing = false;
+    }
   }
 
   Future<void> _loadAllSamples() async {
-    final futures = [
-      loadSample(Octave.two),
-      loadSample(Octave.three),
-      loadSample(Octave.four),
-      loadSample(Octave.five),
-      loadSample(Octave.six),
-    ];
+    final futures = Octave.values.map((octave) => loadSample(octave).catchError((_) {}));
+    await Future.wait(futures);
 
-    await Future.wait(futures.map((future) => future.catchError((error) {
-      print('Error loading sample: $error');
-      return '';
-    })));
+    if (samples.values.where((s) => s.isLoaded).isEmpty) {
+      _silentMode = true;
+      _fallbackAssetPath = null;
+    }
   }
 
   Future<String> loadSample(Octave octave) async {
     final sample = samples[octave]!;
-
     if (sample.isUndefined) {
       samples[octave] = const AudioSample.loading();
 
       try {
-        final assetPath = 'assets/audio/samples_piano_F${octave.value}.$extension';
+        final assetPath = 'audio/samples_piano_F${octave.value}.$extension';
+        try {
+          final data = await rootBundle.load('assets/$assetPath');
+          if (data.lengthInBytes > 0) {
+            samples[octave] = AudioSample.loaded(assetPath);
+            return assetPath;
+          }
+        } catch (_) {
+          if (_fallbackAssetPath != null && !_silentMode) {
+            final fallbackData = await rootBundle.load('assets/$_fallbackAssetPath');
+            if (fallbackData.lengthInBytes > 0) {
+              samples[octave] = AudioSample.loaded(_fallbackAssetPath!);
+              return _fallbackAssetPath!;
+            }
+          }
+        }
 
-        // Verify the asset exists
-        await rootBundle.load(assetPath);
-
-        samples[octave] = AudioSample.loaded(assetPath);
-        return assetPath;
+        throw Exception('No sample or fallback found.');
       } catch (e) {
-        final errorMessage = 'Failed to load sample for octave ${octave.value}: $e';
-        samples[octave] = AudioSample.error(errorMessage);
-        throw Exception(errorMessage);
+        samples[octave] = AudioSample.error('$e');
+        return '';
       }
     } else if (sample.isLoading) {
-      throw Exception("Duplicate playing action when sample is still loading.");
+      int attempts = 0;
+      while (samples[octave]!.isLoading && attempts < 50) {
+        await Future.delayed(const Duration(milliseconds: 100));
+        attempts++;
+      }
+
+      final updated = samples[octave]!;
+      return updated.isLoaded ? updated.assetPath! : '';
     } else if (sample.hasError) {
-      throw Exception(sample.errorMessage);
+      return '';
     } else {
       return sample.assetPath!;
     }
   }
 
-  Future<void> playSample(String assetPath, int key) async {
-    try {
-      // Stop any currently playing audio
-      await _audioPlayer.stop();
-
-      // Calculate playback rate for pitch shifting
-      final playbackRate = _calculatePlaybackRate(key);
-
-      // Set playback rate (note: not all platforms support this)
-      await _audioPlayer.setPlaybackRate(playbackRate);
-
-      // Play the audio file
-      await _audioPlayer.play(AssetSource(assetPath));
-
-      // Auto-stop after 2 seconds (similar to original implementation)
-      Future.delayed(const Duration(seconds: 2), () {
-        _audioPlayer.stop();
-      });
-
-    } catch (e) {
-      print('Error playing sample: $e');
-      rethrow;
-    }
+  double _calculatePlaybackRate(int key) {
+    final fKey = keys[KeyName.f]!;
+    return math.pow(2, (key - fKey) / 12).toDouble().clamp(0.5, 2.0);
   }
 
-  double _calculatePlaybackRate(int key) {
-    // Equivalent to: 2 ** ((key - Keys['F']) / 12)
-    final fKey = keys[KeyName.f]!;
-    final rate = math.pow(2, (key - fKey) / 12).toDouble();
+  Future<void> playSample(String assetPath, int key) async {
+    if (assetPath.isEmpty || _silentMode) {
+      try {
+        HapticFeedback.lightImpact();
+      } catch (_) {}
+      return;
+    }
 
-    // Clamp playback rate to reasonable bounds (0.5x to 2.0x)
-    return rate.clamp(0.5, 2.0);
+    try {
+      final player = AudioPlayer();
+      _activePlayers.add(player);
+
+      final rate = _calculatePlaybackRate(key);
+      await player.setPlaybackRate(rate);
+      await player.play(AssetSource(assetPath));
+
+      Future.delayed(const Duration(seconds: 2), () async {
+        try {
+          await player.stop();
+          await player.dispose();
+        } catch (_) {}
+        _activePlayers.remove(player);
+      });
+    } catch (e) {
+      try {
+        HapticFeedback.lightImpact();
+      } catch (_) {}
+    }
   }
 
   Future<void> play(int key, Octave octave) async {
-    try {
-      final assetPath = await loadSample(octave);
-      await playSample(assetPath, key);
-    } catch (e) {
-      print('Error playing audio: $e');
+    if (!_isInitialized && !_isInitializing) {
+      await _initializeAudio();
     }
+
+    final assetPath = await loadSample(octave);
+    await playSample(assetPath, key);
   }
 
-  // Play a chord (multiple notes)
-  Future<void> playChord(List<int> keys, Octave octave) async {
-    try {
-      for (int key in keys) {
-        // Small delay between notes to create a chord effect
-        Future.delayed(Duration(milliseconds: keys.indexOf(key) * 50), () {
-          play(key, octave);
-        });
-      }
-    } catch (e) {
-      print('Error playing chord: $e');
+  Future<void> stopAll() async {
+    for (var player in _activePlayers) {
+      try {
+        await player.stop();
+        await player.dispose();
+      } catch (_) {}
     }
+    _activePlayers.clear();
   }
 
-  // Stop all audio
-  Future<void> stop() async {
-    await _audioPlayer.stop();
-  }
-
-  // Dispose resources
   void dispose() {
-    _audioPlayer.dispose();
+    stopAll();
   }
 
-  // Set volume (0.0 to 1.0)
   Future<void> setVolume(double volume) async {
-    await _audioPlayer.setVolume(volume.clamp(0.0, 1.0));
+    for (var player in _activePlayers) {
+      try {
+        await player.setVolume(volume.clamp(0.0, 1.0));
+      } catch (_) {}
+    }
   }
 
-  // Check if a sample is ready to play
-  bool isSampleReady(Octave octave) {
-    return samples[octave]?.isLoaded ?? false;
-  }
+  bool isSampleReady(Octave octave) => samples[octave]?.isLoaded ?? false;
 
-  // Get loading progress (returns percentage of samples loaded)
   double get loadingProgress {
-    int loadedCount = samples.values.where((sample) => sample.isLoaded).length;
-    return loadedCount / samples.length;
+    int loaded = samples.values.where((s) => s.isLoaded).length;
+    return loaded / samples.length;
   }
 
-  // Check if all samples are loaded
-  bool get isFullyLoaded {
-    return samples.values.every((sample) => sample.isLoaded);
-  }
+  bool get isFullyLoaded => samples.values.every((s) => s.isLoaded);
+
+  bool get hasAudioFiles => _fallbackAssetPath != null;
+
+  List<Octave> get availableOctaves => samples.entries
+      .where((e) => e.value.isLoaded)
+      .map((e) => e.key)
+      .toList();
 }
 
-// Global piano instance
 final Piano piano = Piano();

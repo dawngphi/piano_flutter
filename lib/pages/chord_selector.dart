@@ -99,6 +99,7 @@ class _ChordSelectorState extends State<ChordSelector> {
     return Container(
       padding: const EdgeInsets.all(16),
       child: Column(
+        mainAxisSize: MainAxisSize.min, // Thêm dòng này
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Search input
@@ -141,8 +142,9 @@ class _ChordSelectorState extends State<ChordSelector> {
             ),
           ),
 
-          // Chords grid
-          Expanded(
+          // Chords grid - Thay đổi từ Flexible thành Container với height cố định
+          Container(
+            height: 400, // Đặt height cố định thay vì dùng Flexible
             child: filteredChords.isNotEmpty
                 ? GridView.builder(
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -187,7 +189,7 @@ class _ChordSelectorState extends State<ChordSelector> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             // Chord thumbnail
-            Expanded(
+            Expanded( // Thay đổi từ Flexible thành Expanded
               flex: 3,
               child: Container(
                 padding: const EdgeInsets.all(8),
@@ -201,29 +203,27 @@ class _ChordSelectorState extends State<ChordSelector> {
             ),
 
             // Chord name
-            Expanded(
-              flex: 1,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                decoration: BoxDecoration(
-                  color: themeColor.withOpacity(0.1),
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(12),
-                    bottomRight: Radius.circular(12),
-                  ),
+            Container( // Thay đổi từ Flexible thành Container
+              height: 40, // Đặt height cố định
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: themeColor.withOpacity(0.1),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(12),
+                  bottomRight: Radius.circular(12),
                 ),
-                child: Center(
-                  child: Text(
-                    chord.shortName,
-                    style: TextStyle(
-                      color: themeColor,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+              ),
+              child: Center(
+                child: Text(
+                  chord.shortName,
+                  style: TextStyle(
+                    color: themeColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
                   ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ),

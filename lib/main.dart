@@ -13,8 +13,6 @@ class PianoApp extends StatelessWidget {
       title: 'Piano Demo',
       debugShowCheckedModeBanner: false,
       home: const IndexPage(),
-
-      // 👇 THÊM CÁI NÀY
       onGenerateRoute: (RouteSettings settings) {
         final uri = Uri.parse(settings.name!);
 
@@ -30,10 +28,6 @@ class PianoApp extends StatelessWidget {
             ),
           );
         }
-
-        // Add more route parsing here if needed
-
-        // fallback: 404 page
         return MaterialPageRoute(
           builder: (context) => Scaffold(
             body: Center(child: Text('404 - Page not found')),

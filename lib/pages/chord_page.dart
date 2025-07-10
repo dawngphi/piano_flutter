@@ -34,7 +34,6 @@ class _ChordPageState extends State<ChordPage> {
   @override
   void initState() {
     super.initState();
-    // _updateTitle();
   }
 
   @override
@@ -46,11 +45,13 @@ class _ChordPageState extends State<ChordPage> {
       _updateTitle();
     }
   }
-@override
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _updateTitle();
   }
+
   void _updateTitle() {
     final decoded = _urlDecode();
     String title = AppConstants.titlePrefix;
@@ -61,7 +62,6 @@ class _ChordPageState extends State<ChordPage> {
       title += " - Key ${decoded.selectedKey}";
     }
 
-    // In Flutter web, you can update the browser title
     SystemChrome.setApplicationSwitcherDescription(
       ApplicationSwitcherDescription(
         label: title,
@@ -97,9 +97,9 @@ class _ChordPageState extends State<ChordPage> {
     }
 
     return (
-      selectedKey: selectedKey,
-      selectedChord: selectedChord,
-      inversion: inversion,
+    selectedKey: selectedKey,
+    selectedChord: selectedChord,
+    inversion: inversion,
     );
   }
 
@@ -125,13 +125,6 @@ class _ChordPageState extends State<ChordPage> {
 
     final keyName12 = parseKeyName(selectedKey!);
     print("parsed keyName: $keyName12");
-    // final chordList = chords['C'];
-    // if (chordList != null) {
-    //   for (var chord in chordList) {
-    //     print('Alias for chord: ${chord.alias}');
-    //   }
-    // }
-
 
     // Validation checks
     if (selectedKey == null) {
@@ -148,108 +141,29 @@ class _ChordPageState extends State<ChordPage> {
       });
       return const SizedBox.shrink();
     }
-
-    if (selectedChord != null) {
-      return _buildChordView(selectedKey, selectedChord, inversion);
-    } else {
-      return _buildKeyView(selectedKey);
-    }
-  }
-
-
-  Widget _buildChordView(
-    String selectedKey,
-    String selectedChord,
-    int inversion,
-  ) {
-    final chord = findChordByName(selectedKey, selectedChord);
-
-    if (chord == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _navigateToNotFound();
-      });
-      return const SizedBox.shrink();
-    }
-    final keyName = parseKeyName(selectedKey);
-    if (keyName == null || !keySimpleList.contains(keyName)) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _navigateToNotFound();
-      });
-      return const SizedBox.shrink();
-    }
-    List<bool> highlightTable;
-    int colorIndex;
-
-    if (inversion == 0) {
-      highlightTable = chordAlignMid(getHighlightTable(chord));
-      colorIndex = keySimpleList.indexOf(keyName) + 1;
-    } else {
-      if (chord.inversions.length < inversion) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _navigateToNotFound();
-        });
-        return const SizedBox.shrink();
-      }
-
-      highlightTable = chordAlignMid(
-        getHighlightTable(chord.inversions[inversion - 1]),
-      );
-      colorIndex =
-          keySimpleList
-              .map((str) => keys[str]!)
-              .toList()
-              .indexOf(chord.inversions[inversion - 1].key) +
-          1;
-    }
-
-    final color = keySimpleList.indexOf(keyName) + 1;
-
-
-
-    return Scaffold(
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            Keyboard(
-              props: KeyboardProps(
-                offset: octaveAdj,
-                highlightTable: highlightTable,
-                highlightColor: colorIndex,
-              ),
-            ),
-            KeySelector(selectedKey: selectedKey, link: true),
-            Playbox(
-              offset: octaveAdj,
-              highlightTable: highlightTable,
-              raiseOctave: raiseOctave,
-              lowerOctave: lowerOctave,
-              risingDisabled: octaveAdj == maxOctaveAdj,
-              lowerDisabled: octaveAdj == minOctaveAdj,
-              color: color,
-            ),
-            ChordDetail(chord: chord, inversion: inversion, color: color),
-            ChordSelector(selectedKey: keyName),
-          ],
-        ),
-      ),
-    );
+    return _buildKeyView(selectedKey);
   }
 
   Widget _buildKeyView(String selectedKey) {
-
     final keyName = parseKeyName(selectedKey);
     if (keyName == null) {
       _navigateToNotFound();
       return const SizedBox.shrink();
     }
     return Scaffold(
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            Keyboard(props: KeyboardProps(offset: 0)),
-            KeySelector(selectedKey: selectedKey, link: true),
-            ChordSelector(selectedKey: keyName),
-          ],
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                height: 120,
+                child: Keyboard(props: KeyboardProps(offset: 0)),
+              ),
+              KeySelector(selectedKey: selectedKey, link: true),
+              ChordSelector(selectedKey: keyName),
+            ],
+          ),
         ),
       ),
     );
