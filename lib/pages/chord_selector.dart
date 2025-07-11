@@ -42,16 +42,15 @@ class _ChordSelectorState extends State<ChordSelector> {
   }
 
   void _handleChordTap(Chord chord) {
-    // Navigate to chord detail page
     final encodedKey = urlEncodeKey(widget.selectedKey.name);
-    final encodedChord = urlEncodeChord(chord.name);
-    final route = '/chord/$encodedKey/$encodedChord';
 
+    final encodedChord = urlEncodeChord(chord.alias.first);
+    final route = '/chord/$encodedKey/$encodedChord';
     Navigator.pushNamed(context, route);
   }
 
   Color _getColorFromIndex(int colorIndex) {
-    // Define your color palette here - should match your app theme
+
     final colors = [
       Colors.red,
       Colors.blue,

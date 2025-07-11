@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:piano/pages/chord_page_full.dart';
 import 'package:piano/pages/index_page.dart';
 import 'package:piano/pages/chord_page.dart';
 
@@ -22,7 +23,7 @@ class PianoApp extends StatelessWidget {
           final selectedChord = uri.pathSegments[2];
 
           return MaterialPageRoute(
-            builder: (context) => ChordPage(
+            builder: (context) => ChordPageFull(
               selectedKey: selectedKey,
               selectedChord: selectedChord,
             ),
