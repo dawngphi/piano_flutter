@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'bloc/app_bloc.dart';
+import 'bloc/app_event.dart';
+import 'bloc/app_state.dart';
 import 'package:piano/pages/chord_page_full.dart';
 import 'package:piano/pages/index_page.dart';
 import 'package:piano/pages/chord_page.dart';
 
 void main() {
-  runApp(PianoApp());
+  runApp(
+    BlocProvider(
+      create: (context) => AppBloc(),
+      child: PianoApp(),
+    ),
+  );
 }
 
 class PianoApp extends StatelessWidget {
@@ -23,10 +32,7 @@ class PianoApp extends StatelessWidget {
           final selectedChord = uri.pathSegments[2];
 
           return MaterialPageRoute(
-            builder: (context) => ChordPageFull(
-              selectedKey: selectedKey,
-              selectedChord: selectedChord,
-            ),
+            builder: (context) => ChordPageFull(),
           );
         }
         return MaterialPageRoute(

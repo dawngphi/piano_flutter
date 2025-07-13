@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../bloc/app_bloc.dart';
+import '../bloc/app_state.dart';
+import '../bloc/app_event.dart';
 import 'package:flutter/services.dart';
 import 'package:piano/logic/constant.dart';
 import 'package:piano/pages/playbox.dart';
@@ -13,16 +17,7 @@ const int maxOctaveAdj = 1;
 const int minOctaveAdj = -1;
 
 class ChordPage extends StatefulWidget {
-  final String? selectedKey;
-  final String? selectedChord;
-  final String? inversion;
-
-  const ChordPage({
-    Key? key,
-    this.selectedKey,
-    this.selectedChord,
-    this.inversion,
-  }) : super(key: key);
+  const ChordPage({Key? key}) : super(key: key);
 
   @override
   State<ChordPage> createState() => _ChordPageState();
@@ -34,40 +29,6 @@ class _ChordPageState extends State<ChordPage> {
   @override
   void initState() {
     super.initState();
-  }
-
-  @override
-  void didUpdateWidget(ChordPage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.selectedKey != widget.selectedKey ||
-        oldWidget.selectedChord != widget.selectedChord ||
-        oldWidget.inversion != widget.inversion) {
-      _updateTitle();
-    }
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _updateTitle();
-  }
-
-  void _updateTitle() {
-    final decoded = _urlDecode();
-    String title = AppConstants.titlePrefix;
-
-    if (decoded.selectedChord != null) {
-      title += " - ${decoded.selectedChord}";
-    } else if (decoded.selectedKey != null) {
-      title += " - Key ${decoded.selectedKey}";
-    }
-
-    SystemChrome.setApplicationSwitcherDescription(
-      ApplicationSwitcherDescription(
-        label: title,
-        primaryColor: Theme.of(context).primaryColor.value,
-      ),
-    );
   }
 
   void raiseOctave() {
@@ -84,64 +45,34 @@ class _ChordPageState extends State<ChordPage> {
     });
   }
 
-  ({String? selectedKey, String? selectedChord, int inversion}) _urlDecode() {
-    String? selectedKey = urlDecodeKey(widget.selectedKey);
-    String? selectedChord = urlDecodeChord(widget.selectedChord);
-
-    int inversion = 0;
-    if (widget.inversion != null) {
-      final parsed = int.tryParse(widget.inversion!);
-      if (parsed != null && !parsed.isNaN) {
-        inversion = parsed;
-      }
-    }
-
-    return (
-    selectedKey: selectedKey,
-    selectedChord: selectedChord,
-    inversion: inversion,
-    );
-  }
-
   void _navigateToNotFound() {
     Navigator.of(context).pushReplacementNamed('/404');
   }
 
   @override
   Widget build(BuildContext context) {
-    final decoded = _urlDecode();
-    final selectedKey = decoded.selectedKey;
-    final selectedChord = decoded.selectedChord;
-    final inversion = decoded.inversion;
+    return BlocBuilder<AppBloc, AppState>(
+      builder: (context, state) {
+        final selectedKey = state.selectedKey;
+        final selectedChord = state.selectedChord;
 
-    print("selectedKey = $selectedKey");
-    print("selectedChord = $selectedChord");
-    print("inversion = $inversion");
-    final keyName123 = parseKeyName(selectedKey!);
-    print("is key valid: ${keySimpleList.contains(keyName123)}");
+        if (selectedKey == null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _navigateToNotFound();
+          });
+          return const SizedBox.shrink();
+        }
 
-    final chord12 = findChordByName(selectedKey!, selectedChord!);
-    print("found chord: $chord12");
-
-    final keyName12 = parseKeyName(selectedKey!);
-    print("parsed keyName: $keyName12");
-
-    // Validation checks
-    if (selectedKey == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _navigateToNotFound();
-      });
-      return const SizedBox.shrink();
-    }
-
-    final keyName = parseKeyName(selectedKey);
-    if (keyName == null || !keySimpleList.contains(keyName)) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _navigateToNotFound();
-      });
-      return const SizedBox.shrink();
-    }
-    return _buildKeyView(selectedKey);
+        final keyName = parseKeyName(selectedKey);
+        if (keyName == null || !keySimpleList.contains(keyName)) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _navigateToNotFound();
+          });
+          return const SizedBox.shrink();
+        }
+        return _buildKeyView(selectedKey);
+      },
+    );
   }
 
   Widget _buildKeyView(String selectedKey) {

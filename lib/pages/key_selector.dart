@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../bloc/app_bloc.dart';
+import '../bloc/app_event.dart';
 import '../logic/key.dart';
 import '../logic/helper.dart';
 
 class KeySelector extends StatelessWidget {
   final String? selectedKey;
   final bool link;
-  final Function(KeyName)? setKey;
+  // Bỏ setKey vì sẽ dùng Bloc
 
   const KeySelector({
     Key? key,
     this.selectedKey,
     required this.link,
-    this.setKey,
   }) : super(key: key);
 
   @override
@@ -75,12 +77,13 @@ class KeySelector extends StatelessWidget {
     );
 
     if (link) {
-      // Equivalent to <a href={'/chord/' + urlEncodeKey(key) + '/'}>
       return GestureDetector(
         onTap: () {
           try {
             final encodedKey = urlEncodeKey(keyString);
             print("urlEncodeKey$urlEncodeKey");
+            // Gửi event Bloc khi chọn phím
+            context.read<AppBloc>().add(SelectKeyEvent(keyName: keyString));
             Navigator.pushNamed(context, '/chord/$encodedKey/Maj');
           } catch (e) {
             debugPrint('Error navigating to chord page: $e');
@@ -89,13 +92,10 @@ class KeySelector extends StatelessWidget {
         child: widget,
       );
     } else {
-      // Equivalent to <div onClick={() => { if (this.props.setKey) this.props.setKey(key) }}>
       return GestureDetector(
         onTap: () {
           try {
-            if (setKey != null) {
-              setKey!(keyName);
-            }
+            context.read<AppBloc>().add(SelectKeyEvent(keyName: keyString));
           } catch (e) {
             debugPrint('Error calling setKey: $e');
           }
@@ -105,23 +105,29 @@ class KeySelector extends StatelessWidget {
     }
   }
 
-  Color _getColorForIndex(int index) {
-    // Equivalent to CSS classes 'color-1', 'color-2', etc.
-    const colors = [
-      Color(0xFFE53E3E),   // color-1: Red
-      Color(0xFFD53F8C),   // color-2: Pink
-      Color(0xFF9F7AEA),   // color-3: Purple
-      Color(0xFF667EEA),   // color-4: Indigo
-      Color(0xFF4299E1),   // color-5: Blue
-      Color(0xFF0BC5EA),   // color-6: Cyan
-      Color(0xFF00B5D8),   // color-7: Teal
-      Color(0xFF38A169),   // color-8: Green
-      Color(0xFF68D391),   // color-9: Light Green
-      Color(0xFFD69E2E),   // color-10: Yellow
-      Color(0xFFED8936),   // color-11: Orange
-      Color(0xFFE53E3E),   // color-12: Red (repeat)
+  Color _getColorForIndex(int colorIndex) {
+    final colors = [
+      Colors.red,
+      Colors.blue,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+      Colors.teal,
+      Colors.pink,
+      Colors.amber,
+      Colors.indigo,
+      Colors.cyan,
+      Colors.lime,
+      Colors.brown,
+      Colors.deepOrange,
+      Colors.lightBlue,
+      Colors.lightGreen,
+      Colors.deepPurple,
+      Colors.brown,
     ];
-
-    return colors[(index - 1) % colors.length];
+    if (colorIndex >= 0 && colorIndex < colors.length) {
+      return colors[colorIndex];
+    }
+    return Colors.grey;
   }
 }

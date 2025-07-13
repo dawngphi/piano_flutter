@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../bloc/app_bloc.dart';
+import '../bloc/app_event.dart';
 import '../logic/chord.dart';
 import '../logic/db.dart';
 import '../logic/helper.dart';
@@ -43,14 +46,14 @@ class _ChordSelectorState extends State<ChordSelector> {
 
   void _handleChordTap(Chord chord) {
     final encodedKey = urlEncodeKey(widget.selectedKey.name);
-
     final encodedChord = urlEncodeChord(chord.alias.first);
     final route = '/chord/$encodedKey/$encodedChord';
+    // Gửi event Bloc khi chọn hợp âm
+    context.read<AppBloc>().add(SelectChordEvent(keyName: widget.selectedKey.name, chordName: chord.alias.first));
     Navigator.pushNamed(context, route);
   }
 
   Color _getColorFromIndex(int colorIndex) {
-
     final colors = [
       Colors.red,
       Colors.blue,
@@ -70,7 +73,6 @@ class _ChordSelectorState extends State<ChordSelector> {
       Colors.deepPurple,
       Colors.brown,
     ];
-
     if (colorIndex >= 0 && colorIndex < colors.length) {
       return colors[colorIndex];
     }
